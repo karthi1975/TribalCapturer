@@ -71,7 +71,7 @@ const MADashboard: React.FC<MADashboardProps> = ({ user, onLogout }) => {
     }
   }, [currentTab, currentPage]);
 
-  const handleSubmit = async (data: KnowledgeEntryCreateRequest, isDraft: boolean) => {
+  const handleSubmit = async (data: KnowledgeEntryCreateRequest, _isDraft: boolean) => {
     try {
       await api.post('/api/v1/knowledge-entries/', data);
       // Refresh entries if on My Entries tab

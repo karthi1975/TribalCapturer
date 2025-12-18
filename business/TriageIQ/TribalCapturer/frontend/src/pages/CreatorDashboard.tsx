@@ -21,6 +21,7 @@ import {
   KnowledgeEntry,
   KnowledgeEntryList,
   SearchResults,
+  EntryStatus,
 } from '../types';
 
 interface CreatorDashboardProps {
@@ -135,7 +136,9 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ user, onLogout }) =
         ma_name: result.ma_name,
         facility: result.facility,
         specialty_service: result.specialty_service,
-        status: 'published' as const,
+        knowledge_type: result.knowledge_type,
+        is_continuity_care: result.is_continuity_care,
+        status: EntryStatus.PUBLISHED,
         created_at: result.created_at,
       }));
     }

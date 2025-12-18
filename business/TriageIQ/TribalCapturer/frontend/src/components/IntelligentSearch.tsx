@@ -192,7 +192,7 @@ const IntelligentSearch: React.FC<IntelligentSearchProps> = ({ onResultClick }) 
 
         {/* Results */}
         <Stack spacing={2}>
-          {results.map((result, index) => (
+          {results.map((result) => (
             <Card
               key={result.entry.id}
               variant="outlined"

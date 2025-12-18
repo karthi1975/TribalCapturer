@@ -76,6 +76,8 @@ export interface SearchResult {
   ma_name: string;
   facility: string;
   specialty_service: string;
+  knowledge_type: KnowledgeType;
+  is_continuity_care: boolean;
   created_at: string;
   highlighted_snippet: string;
 }

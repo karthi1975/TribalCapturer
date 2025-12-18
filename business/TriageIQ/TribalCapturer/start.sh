@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Set library path for C++ stdlib
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/nix/store/*-gcc-*/lib"
+
 # Activate virtual environment
 source /opt/venv/bin/activate
 

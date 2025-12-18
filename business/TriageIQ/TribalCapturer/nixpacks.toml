@@ -5,14 +5,14 @@ nixLibs = ["stdenv.cc.cc"]
 [phases.install]
 cmds = [
   "python -m venv /opt/venv",
-  ". /opt/venv/bin/activate && pip install -r business/TriageIQ/TribalCapturer/backend/requirements.txt",
-  "cd business/TriageIQ/TribalCapturer/frontend && npm ci"
+  ". /opt/venv/bin/activate && pip install -r backend/requirements.txt",
+  "cd frontend && npm ci"
 ]
 
 [phases.build]
 cmds = [
-  "cd business/TriageIQ/TribalCapturer/frontend && npm run build"
+  "cd frontend && npm run build"
 ]
 
 [start]
-cmd = "bash business/TriageIQ/TribalCapturer/start.sh"
+cmd = "bash start.sh"

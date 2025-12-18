@@ -60,6 +60,17 @@ if frontend_dist.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
         logger.info(f"Mounted /assets from {assets_dir}")
 
+    # Root route for serving frontend
+    @app.get("/", include_in_schema=False)
+    async def serve_root():
+        """Serve frontend index.html at root"""
+        index_path = frontend_dist / "index.html"
+        if index_path.exists():
+            return FileResponse(str(index_path))
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Frontend not built")
+
     # Catch-all route for SPA (must be last, excludes /api, /docs, /redoc, /health)
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):

@@ -36,7 +36,12 @@
       "Bash(chmod:*)",
       "Bash(/tmp/seed_all_knowledge.sh:*)",
       "Bash(head -6 echo \"\" echo \"════════════════════════════════════════════════════════════════════════════\" echo \"📚 Documentation Files Created:\" echo \"════════════════════════════════════════════════════════════════════════════\" ls -1 /Users/karthi/business/TriageIQ/TribalCapturer/*.md echo \"\" ls -1 /Users/karthi/business/TriageIQ/TribalCapturer/backend/*.md echo \"\" ls -1 /Users/karthi/business/TriageIQ/TribalCapturer/backend/*.sh echo \"\" echo \"════════════════════════════════════════════════════════════════════════════\" echo \"🎉 ALL 6 KNOWLEDGE TYPES READY FOR FREE-FORM ENTRY!\" echo \"════════════════════════════════════════════════════════════════════════════\")",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)"
     ]
   }
 }

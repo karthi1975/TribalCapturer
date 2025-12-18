@@ -1,7 +1,7 @@
 /**
  * Material-UI Knowledge Detail Component (Modal/Dialog)
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -14,6 +14,7 @@ import {
   Stack,
   Divider,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -21,8 +22,10 @@ import {
   Business as FacilityIcon,
   LocalHospital as SpecialtyIcon,
   CalendarToday as CalendarIcon,
+  PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
 import { KnowledgeEntry, EntryStatus } from '../types';
+import { downloadSingleEntryPDF } from '../services/api';
 
 interface KnowledgeDetailProps {
   entry: KnowledgeEntry | null;
@@ -37,6 +40,9 @@ const KnowledgeDetail: React.FC<KnowledgeDetailProps> = ({
   onClose,
   loading = false,
 }) => {
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -50,6 +56,28 @@ const KnowledgeDetail: React.FC<KnowledgeDetailProps> = ({
 
   const getStatusColor = (status: EntryStatus) => {
     return status === EntryStatus.PUBLISHED ? 'success' : 'warning';
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!entry) return;
+
+    setDownloadLoading(true);
+    setError(null);
+
+    try {
+      await downloadSingleEntryPDF(entry.id);
+    } catch (err: any) {
+      console.error('Failed to download PDF:', err);
+      if (err.response?.status === 403) {
+        setError('You do not have permission to download this entry.');
+      } else if (err.response?.status === 404) {
+        setError('Entry not found.');
+      } else {
+        setError('Download failed. Please try again.');
+      }
+    } finally {
+      setDownloadLoading(false);
+    }
   };
 
   const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({
@@ -90,6 +118,11 @@ const KnowledgeDetail: React.FC<KnowledgeDetailProps> = ({
       </DialogTitle>
 
       <DialogContent dividers>
+        {error && (
+          <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress />
@@ -155,6 +188,15 @@ const KnowledgeDetail: React.FC<KnowledgeDetailProps> = ({
       </DialogContent>
 
       <DialogActions>
+        <Button
+          onClick={handleDownloadPDF}
+          startIcon={downloadLoading ? <CircularProgress size={20} /> : <PdfIcon />}
+          variant="contained"
+          color="primary"
+          disabled={!entry || downloadLoading}
+        >
+          {downloadLoading ? 'Downloading...' : 'Download PDF'}
+        </Button>
         <Button onClick={onClose} startIcon={<CloseIcon />} variant="outlined">
           Close
         </Button>

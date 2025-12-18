@@ -1,10 +1,12 @@
 """
 API routes for knowledge entry operations.
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
+from datetime import datetime
 
 from ...database import get_db
 from ...models.user import User, UserRole
@@ -19,6 +21,7 @@ from ...api.schemas.knowledge import (
     BatchKnowledgeEntryResponse
 )
 from ...services import knowledge_service
+from ...services.pdf_service import generate_single_entry_pdf, generate_bulk_entries_pdf
 from ...models.knowledge_entry import EntryStatus
 
 router = APIRouter()
@@ -512,3 +515,158 @@ async def get_diagnosis_guidance(
         "guidance": guidance,
         "total_results": len(guidance)
     }
+
+
+@router.get(
+    "/{entry_id}/export-pdf",
+    summary="Export single knowledge entry as PDF",
+    response_class=StreamingResponse
+)
+async def export_entry_pdf(
+    entry_id: UUID,
+    current_user: User = Depends(require_role(UserRole.CREATOR)),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Download a single knowledge entry as a professionally formatted PDF.
+
+    **Creator Role Only**: Only published entries can be exported.
+
+    Returns:
+        StreamingResponse with PDF file
+
+    Headers:
+        Content-Type: application/pdf
+        Content-Disposition: attachment; filename="knowledge_entry_{id}.pdf"
+
+    Raises:
+        HTTPException 404: Entry not found
+        HTTPException 403: User does not have permission to access this entry
+        HTTPException 500: PDF generation failed
+    """
+    # Fetch entry
+    entry = await knowledge_service.get_entry_by_id(db, entry_id)
+
+    if not entry:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Knowledge entry with ID {entry_id} not found"
+        )
+
+    # Check if entry is published (Creators can only access published entries)
+    if entry.status != EntryStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only published entries can be exported"
+        )
+
+    # Generate PDF
+    try:
+        pdf_buffer = generate_single_entry_pdf(entry)
+
+        # Create filename
+        filename = f"knowledge_entry_{entry_id}.pdf"
+
+        # Return as streaming response
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate PDF: {str(e)}"
+        )
+
+
+@router.post(
+    "/export-pdf-bulk",
+    summary="Export multiple knowledge entries as single PDF",
+    response_class=StreamingResponse
+)
+async def export_entries_bulk_pdf(
+    entry_ids: List[UUID] = Body(..., max_length=1000, embed=True),
+    current_user: User = Depends(require_role(UserRole.CREATOR)),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Download multiple knowledge entries as a single PDF (one entry per page).
+
+    **Creator Role Only**: Only published entries can be exported.
+
+    **Limit**: Maximum 1000 entries per request.
+
+    Request Body:
+        {
+            "entry_ids": ["uuid1", "uuid2", ...]
+        }
+
+    Returns:
+        StreamingResponse with PDF file
+
+    Headers:
+        Content-Type: application/pdf
+        Content-Disposition: attachment; filename="knowledge_entries_{timestamp}.pdf"
+
+    Raises:
+        HTTPException 400: Empty entry list or too many entries
+        HTTPException 403: User does not have permission
+        HTTPException 500: PDF generation failed
+    """
+    # Validate entry count
+    if not entry_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Entry IDs list cannot be empty"
+        )
+
+    if len(entry_ids) > 1000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot export more than 1000 entries at once"
+        )
+
+    # Fetch all entries
+    from sqlalchemy import select
+    from ...models.knowledge_entry import KnowledgeEntry
+
+    query = select(KnowledgeEntry).where(
+        KnowledgeEntry.id.in_(entry_ids),
+        KnowledgeEntry.status == EntryStatus.PUBLISHED  # Only published entries
+    ).order_by(KnowledgeEntry.created_at.desc())
+
+    result = await db.execute(query)
+    entries = result.scalars().all()
+
+    if not entries:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No published entries found with the provided IDs"
+        )
+
+    # Generate PDF
+    try:
+        pdf_buffer = generate_bulk_entries_pdf(list(entries))
+
+        # Create filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"knowledge_entries_{timestamp}.pdf"
+
+        # Return as streaming response
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate PDF: {str(e)}"
+        )

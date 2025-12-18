@@ -45,16 +45,27 @@ app.include_router(knowledge.router, prefix="/api/v1/knowledge-entries", tags=["
 
 # Serve frontend static files
 frontend_dist = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
+
+# Check if frontend dist exists and log it
+import logging
+logger = logging.getLogger(__name__)
+logger.info(f"Frontend dist path: {frontend_dist}")
+logger.info(f"Frontend dist exists: {frontend_dist.exists()}")
+
 if frontend_dist.exists():
+    logger.info("Setting up frontend static file serving...")
     # Mount static assets directory
-    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+    assets_dir = frontend_dist / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+        logger.info(f"Mounted /assets from {assets_dir}")
 
     # Catch-all route for SPA (must be last, excludes /api, /docs, /redoc, /health)
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
         """Serve frontend SPA for all non-API routes"""
         # Exclude API and docs routes
-        if full_path.startswith(("api/", "docs", "redoc", "openapi.json")):
+        if full_path.startswith(("api/", "docs", "redoc", "openapi.json", "health")):
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Not Found")
 
@@ -64,4 +75,11 @@ if frontend_dist.exists():
             return FileResponse(str(file_path))
 
         # Return index.html for client-side routing
-        return FileResponse(str(frontend_dist / "index.html"))
+        index_path = frontend_dist / "index.html"
+        if index_path.exists():
+            return FileResponse(str(index_path))
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Frontend not built")
+else:
+    logger.warning(f"Frontend dist directory not found at {frontend_dist}")

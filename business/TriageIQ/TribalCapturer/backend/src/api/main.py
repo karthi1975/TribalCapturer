@@ -46,18 +46,22 @@ app.include_router(knowledge.router, prefix="/api/v1/knowledge-entries", tags=["
 # Serve frontend static files
 frontend_dist = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"
 if frontend_dist.exists():
+    # Mount static assets directory
     app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
 
-    @app.get("/", include_in_schema=False)
-    async def serve_frontend():
-        """Serve the frontend index.html"""
-        return FileResponse(str(frontend_dist / "index.html"))
-
+    # Catch-all route for SPA (must be last, excludes /api, /docs, /redoc, /health)
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_frontend_routes(full_path: str):
-        """Serve frontend routes (for client-side routing)"""
+    async def serve_spa(full_path: str):
+        """Serve frontend SPA for all non-API routes"""
+        # Exclude API and docs routes
+        if full_path.startswith(("api/", "docs", "redoc", "openapi.json")):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        # Check if it's a static file
         file_path = frontend_dist / full_path
         if file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
+
         # Return index.html for client-side routing
         return FileResponse(str(frontend_dist / "index.html"))

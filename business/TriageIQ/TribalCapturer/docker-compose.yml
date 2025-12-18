@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tribal_knowledge_db
+    environment:
+      POSTGRES_USER: tribal_user
+      POSTGRES_PASSWORD: tribal_pass
+      POSTGRES_DB: tribal_knowledge_portal
+    ports:
+      - "54321:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tribal_user -d tribal_knowledge_portal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

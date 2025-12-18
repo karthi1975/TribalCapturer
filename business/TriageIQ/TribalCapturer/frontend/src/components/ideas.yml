@@ -1,0 +1,65 @@
+The Hard Truth:
+  Half of what I listed is vaporware without massive infrastructure you don't have yet. Let me separate the real from the aspirational:
+
+  ---
+  ✅ Actually Achievable Right Now (Low Hanging Fruit):
+
+  1. Smart Auto-Complete While Typing
+  - Tech needed: Simple embedding search + RAG over tribal knowledge base
+  - Why it works: You already have the knowledge entries, just need semantic search
+  - Reality: Would save MAs 30-60 seconds per call by surfacing relevant rules
+  - Effort: Medium (2-3 weeks with existing LLM APIs)
+
+  2. Knowledge Surfacing ("What Would Sarah Do?")
+  - Tech needed: Same as above - search tribal knowledge by context
+  - Why it works: The whole point of the portal you're building
+  - Reality: This is literally what you designed the system for
+  - Effort: Low (basically just a search feature with good UX)
+
+  3. Pre-Appointment Checklist Auto-Generator
+  - Tech needed: Rule-based system + templates (minimal AI needed)
+  - Why it works: Checklists are deterministic, not probabilistic
+  - Reality: Could reduce pre-appointment errors by 80%
+  - Effort: Low-Medium (mostly data modeling)
+
+  ---
+  🟡 Possible But Requires Infrastructure You Don't Have:
+
+  4. Automatic Patient History Context
+  - Blocker: Needs integration with EHR (Epic/Cerner/etc.)
+  - Reality: Unless you have HL7/FHIR access, this is a non-starter
+  - If you have EHR access: High value, medium effort
+  - If you don't: Forget it for now
+
+  5. Smart Slot Recommendations
+  - Blocker: Needs real-time calendar access + provider availability data
+  - Reality: If you're using Google Calendar/Outlook, doable. If proprietary system, tough.
+  - Value: High IF you can get the data, otherwise useless
+
+  6. Insurance/Authorization Pre-Check
+  - Blocker: Needs insurance eligibility API access ($$$)
+  - Reality: This is a whole product category (Waystar, Availity). Don't reinvent.
+  - Verdict: Too complex for MVP, outsource if needed
+
+  ---
+  🔴 Pure Fantasy (Not Happening Without $5M+ Budget):
+
+  7. Conflict Detection
+  - Why it's hard: Requires comprehensive calendar + understanding of medical procedures
+  - Reality: Would need to parse every appointment type, understand prep requirements, cross-reference
+  - Verdict: Great idea, 5+ years away realistically
+
+  8. Automated Pre-Requisite Ordering
+  - Why it's hard: Requires write access to EHR ordering system
+  - Reality: Healthcare IT security won't allow AI to place orders without human review
+  - Verdict: Regulatory/security nightmare, skip
+
+  9. Batch Operations for Routine Follow-Ups
+  - Why it's hard: Needs automated outreach system + patient portal integration
+  - Reality: You'd be building a whole scheduling automation platform
+  - Verdict: Beyond scope unless this becomes your core product
+
+  10. Exception/Urgency Detection
+  - Why it's hard: Medical liability - AI flags "urgent" and MA misses it = lawsuit
+  - Reality: Would need FDA clearance as medical device if doing clinical triage
+  - Verdict: Legal minefield, don't touch without regulatory approval

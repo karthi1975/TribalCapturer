@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.specify/scripts/bash/setup-plan.sh --json \" This is to capture the Tribal knowledge of clinic imagine an MA want document the tribal knowledge using a portal and TribalIQ creator read the capture knowledge. Name of MA, Facility, Specialty service of Hospital.\")",
+      "Bash(.specify/scripts/bash/setup-plan.sh:*)",
+      "SlashCommand(/speckit.specify This is to capture the Tribal knowledge of clinic imagine an MA want document the tribal knowledge using a portal and TribalIQ creator read the capture knowledge. Name of MA, Facility, Specialty service of Hospital.)",
+      "Bash(git fetch:*)",
+      "Bash(ls:*)",
+      "Bash(.specify/scripts/bash/create-new-feature.sh:*)",
+      "Bash(.specify/scripts/bash/update-agent-context.sh:*)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh:*)",
+      "Bash(grep:*)",
+      "Bash(cd:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(python3:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(python3.11:*)",
+      "Bash(python3.12:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(python /tmp/test_db_sync.py:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker inspect:*)",
+      "Bash(lsof:*)",
+      "Bash(brew services:*)",
+      "Bash(brew services stop:*)",
+      "Bash(kill:*)",
+      "Bash(python /tmp/test_db_54321.py:*)",
+      "Bash(python -m src.database.seed:*)",
+      "Bash(npm install)",
+      "Bash(uvicorn src.api.main:app:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "Bash(/tmp/seed_all_knowledge.sh:*)",
+      "Bash(head -6 echo \"\" echo \"════════════════════════════════════════════════════════════════════════════\" echo \"📚 Documentation Files Created:\" echo \"════════════════════════════════════════════════════════════════════════════\" ls -1 /Users/karthi/business/TriageIQ/TribalCapturer/*.md echo \"\" ls -1 /Users/karthi/business/TriageIQ/TribalCapturer/backend/*.md echo \"\" ls -1 /Users/karthi/business/TriageIQ/TribalCapturer/backend/*.sh echo \"\" echo \"════════════════════════════════════════════════════════════════════════════\" echo \"🎉 ALL 6 KNOWLEDGE TYPES READY FOR FREE-FORM ENTRY!\" echo \"════════════════════════════════════════════════════════════════════════════\")",
+      "Bash(git add:*)"
+    ]
+  }
+}

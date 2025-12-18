@@ -545,7 +545,7 @@ async def export_entry_pdf(
         HTTPException 500: PDF generation failed
     """
     # Fetch entry
-    entry = await knowledge_service.get_entry_by_id(db, entry_id)
+    entry = await knowledge_service.get_knowledge_entry(db, entry_id)
 
     if not entry:
         raise HTTPException(

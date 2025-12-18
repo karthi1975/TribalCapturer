@@ -1,15 +1,18 @@
 [phases.setup]
-nixPkgs = ["python311", "postgresql", "bash", "gcc", "stdenv.cc.cc"]
+nixPkgs = ["python311", "postgresql", "bash", "gcc", "stdenv.cc.cc", "nodejs-18_x"]
 nixLibs = ["stdenv.cc.cc"]
 
 [phases.install]
 cmds = [
   "python -m venv /opt/venv",
-  ". /opt/venv/bin/activate && pip install -r backend/requirements.txt"
+  ". /opt/venv/bin/activate && pip install -r backend/requirements.txt",
+  "cd frontend && npm ci"
 ]
 
 [phases.build]
-cmds = ["echo 'Build complete'"]
+cmds = [
+  "cd frontend && npm run build"
+]
 
 [start]
 cmd = "bash start.sh"

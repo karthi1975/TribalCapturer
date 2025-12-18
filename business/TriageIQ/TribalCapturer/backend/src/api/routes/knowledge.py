@@ -14,7 +14,9 @@ from ...api.schemas.knowledge import (
     KnowledgeEntryUpdate,
     KnowledgeEntryDetail,
     KnowledgeEntryList,
-    SearchResults
+    SearchResults,
+    BatchKnowledgeEntryCreate,
+    BatchKnowledgeEntryResponse
 )
 from ...services import knowledge_service
 from ...models.knowledge_entry import EntryStatus
@@ -47,6 +49,54 @@ async def create_entry(
         KnowledgeEntryDetail: Created entry details
     """
     return await knowledge_service.create_knowledge_entry(db, entry_data, current_user)
+
+
+@router.post(
+    "/batch",
+    response_model=BatchKnowledgeEntryResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create multiple knowledge entries atomically"
+)
+async def create_entries_batch(
+    batch_data: BatchKnowledgeEntryCreate,
+    current_user: User = Depends(require_role(UserRole.MA)),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Create multiple knowledge entries in a single atomic transaction (MA role only).
+
+    **Batch Submission**: Submit 1-50 entries at once. All entries are created or none are created.
+
+    **Use Case**: MA captures multiple knowledge entries during a shift and submits them together.
+
+    Args:
+        batch_data: Batch of knowledge entry data (1-50 entries)
+        current_user: Authenticated MA user
+        db: Database session
+
+    Returns:
+        BatchKnowledgeEntryResponse: Created entries and summary
+
+    Raises:
+        HTTPException: 400 if any entry fails validation or creation
+    """
+    try:
+        created_entries = await knowledge_service.create_knowledge_entries_batch(
+            db, batch_data.entries, current_user
+        )
+
+        return BatchKnowledgeEntryResponse(
+            total_submitted=len(batch_data.entries),
+            total_created=len(created_entries),
+            entries=created_entries,
+            message=f"Successfully created {len(created_entries)} knowledge entries"
+        )
+    except Exception as e:
+        # Return 400 with error details
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Batch creation failed: {str(e)}"
+        )
 
 
 @router.get(

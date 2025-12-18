@@ -120,3 +120,14 @@ export interface KnowledgeEntryUpdateRequest {
 export interface ApiError {
   detail: string;
 }
+
+export interface BatchKnowledgeEntryRequest {
+  entries: KnowledgeEntryCreateRequest[];
+}
+
+export interface BatchKnowledgeEntryResponse {
+  total_submitted: number;
+  total_created: number;
+  entries: KnowledgeEntry[];
+  message: string;
+}

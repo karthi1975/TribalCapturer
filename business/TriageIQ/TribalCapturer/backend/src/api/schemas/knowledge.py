@@ -98,3 +98,21 @@ class SearchResults(BaseModel):
     """Search results response."""
     results: List[SearchResult]
     pagination: Pagination
+
+
+class BatchKnowledgeEntryCreate(BaseModel):
+    """Batch knowledge entry creation schema."""
+    entries: List[KnowledgeEntryCreate] = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="List of knowledge entries to create in a single atomic transaction (1-50 entries)"
+    )
+
+
+class BatchKnowledgeEntryResponse(BaseModel):
+    """Response for batch knowledge entry creation."""
+    total_submitted: int = Field(..., description="Number of entries submitted")
+    total_created: int = Field(..., description="Number of entries successfully created")
+    entries: List[KnowledgeEntryDetail] = Field(..., description="Created knowledge entry details")
+    message: str = Field(..., description="Success message")

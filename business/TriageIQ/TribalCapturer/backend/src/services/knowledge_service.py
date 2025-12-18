@@ -15,7 +15,9 @@ from ..api.schemas.knowledge import (
     KnowledgeEntryList,
     Pagination,
     SearchResult,
-    SearchResults
+    SearchResults,
+    BatchKnowledgeEntryCreate,
+    BatchKnowledgeEntryResponse
 )
 
 
@@ -52,6 +54,60 @@ async def create_knowledge_entry(
     await db.refresh(entry)
 
     return KnowledgeEntryDetail.model_validate(entry)
+
+
+async def create_knowledge_entries_batch(
+    db: AsyncSession,
+    entries_data: List[KnowledgeEntryCreate],
+    user: User
+) -> List[KnowledgeEntryDetail]:
+    """
+    Create multiple knowledge entries atomically in a single transaction.
+
+    All entries are created or none are created (all-or-nothing).
+
+    Args:
+        db: Database session
+        entries_data: List of knowledge entry data
+        user: The authenticated user creating the entries
+
+    Returns:
+        List[KnowledgeEntryDetail]: Created entry details
+
+    Raises:
+        Exception: If any entry fails validation or creation
+    """
+    created_entries = []
+
+    try:
+        # Create all entries within the existing transaction
+        for entry_data in entries_data:
+            entry = KnowledgeEntry(
+                user_id=user.id,
+                ma_name=user.full_name,
+                facility=entry_data.facility,
+                specialty_service=entry_data.specialty_service,
+                provider_name=entry_data.provider_name,
+                knowledge_type=entry_data.knowledge_type.value if isinstance(entry_data.knowledge_type, object) else entry_data.knowledge_type,
+                is_continuity_care=entry_data.is_continuity_care,
+                knowledge_description=entry_data.knowledge_description,
+                status=entry_data.status.value if isinstance(entry_data.status, object) else entry_data.status
+            )
+            db.add(entry)
+            created_entries.append(entry)
+
+        # Commit all at once (atomic)
+        await db.commit()
+
+        # Refresh all entries to get database-generated values
+        for entry in created_entries:
+            await db.refresh(entry)
+
+        return [KnowledgeEntryDetail.model_validate(e) for e in created_entries]
+
+    except Exception as e:
+        # Rollback is handled by get_db() dependency
+        raise e
 
 
 async def get_knowledge_entry(

@@ -9,9 +9,12 @@ import {
   Tabs,
   Tab,
   Alert,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
 import AppNavBar from '../components/AppNavBar';
 import KnowledgeEntryForm from '../components/KnowledgeEntryForm';
+import BatchKnowledgeEntryForm from '../components/BatchKnowledgeEntryForm';
 import KnowledgeList from '../components/KnowledgeList';
 import KnowledgeDetail from '../components/KnowledgeDetail';
 import api from '../services/api';
@@ -20,6 +23,7 @@ import {
   KnowledgeEntryCreateRequest,
   KnowledgeEntry,
   KnowledgeEntryList,
+  BatchKnowledgeEntryRequest,
 } from '../types';
 
 interface MADashboardProps {
@@ -43,6 +47,7 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
 
 const MADashboard: React.FC<MADashboardProps> = ({ user, onLogout }) => {
   const [currentTab, setCurrentTab] = useState(0);
+  const [batchMode, setBatchMode] = useState(false);
   const [myEntries, setMyEntries] = useState<KnowledgeEntryList | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<KnowledgeEntry | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -80,6 +85,19 @@ const MADashboard: React.FC<MADashboardProps> = ({ user, onLogout }) => {
       }
     } catch (err: any) {
       throw new Error(err.response?.data?.detail || 'Failed to create entry');
+    }
+  };
+
+  const handleBatchSubmit = async (entries: KnowledgeEntryCreateRequest[]) => {
+    try {
+      const batchRequest: BatchKnowledgeEntryRequest = { entries };
+      await api.post('/api/v1/knowledge-entries/batch', batchRequest);
+      // Refresh entries if on My Entries tab
+      if (currentTab === 1) {
+        fetchMyEntries(currentPage);
+      }
+    } catch (err: any) {
+      throw new Error(err.response?.data?.detail || 'Failed to create batch entries');
     }
   };
 
@@ -124,7 +142,25 @@ const MADashboard: React.FC<MADashboardProps> = ({ user, onLogout }) => {
         </Box>
 
         <TabPanel value={currentTab} index={0}>
-          <KnowledgeEntryForm onSubmit={handleSubmit} />
+          {/* Mode Toggle */}
+          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+            <ToggleButtonGroup
+              value={batchMode ? 'batch' : 'single'}
+              exclusive
+              onChange={(_, value) => value && setBatchMode(value === 'batch')}
+              size="small"
+            >
+              <ToggleButton value="single">Single Entry</ToggleButton>
+              <ToggleButton value="batch">Batch Entry</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {/* Conditional Rendering */}
+          {batchMode ? (
+            <BatchKnowledgeEntryForm onSubmit={handleBatchSubmit} />
+          ) : (
+            <KnowledgeEntryForm onSubmit={handleSubmit} />
+          )}
         </TabPanel>
 
         <TabPanel value={currentTab} index={1}>

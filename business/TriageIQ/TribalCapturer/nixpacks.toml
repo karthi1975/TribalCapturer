@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "postgresql"]
+nixPkgs = ["python311", "postgresql", "bash"]
 
 [phases.install]
 cmds = [
@@ -11,4 +11,4 @@ cmds = [
 cmds = ["echo 'Build complete'"]
 
 [start]
-cmd = ". /opt/venv/bin/activate && cd backend && alembic upgrade head && python -m src.database.seed && uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
+cmd = "bash start.sh"

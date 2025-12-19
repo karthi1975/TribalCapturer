@@ -1,7 +1,7 @@
 /**
  * Material-UI Knowledge Entry Form Component
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -19,22 +19,12 @@ import {
   Checkbox,
   FormControlLabel,
   Tooltip,
+  CircularProgress,
+  Box,
 } from '@mui/material';
 import { Save as SaveIcon, Publish as PublishIcon } from '@mui/icons-material';
-import { KnowledgeEntryCreateRequest, EntryStatus, KnowledgeType } from '../types';
-
-const FACILITIES = [
-  'Intermountain Medical Center – Murray, UT',
-  'Primary Children\'s Hospital – Salt Lake City, UT',
-  'LDS Hospital – Salt Lake City, UT',
-  'McKay-Dee Hospital – Ogden, UT',
-  'Utah Valley Hospital – Provo, UT',
-  'American Fork Hospital – American Fork, UT',
-  'Riverton Hospital – Riverton, UT',
-  'Park City Hospital – Park City, UT',
-  'Dixie Regional Medical Center – St.George, UT',
-  'Logan Regional Hospital – Logan, UT',
-];
+import { KnowledgeEntryCreateRequest, EntryStatus, KnowledgeType, Facility, Specialty } from '../types';
+import { getMyFacilities, getMySpecialties } from '../services/api';
 
 const KNOWLEDGE_TYPES = [
   {
@@ -94,9 +84,34 @@ const KnowledgeEntryForm: React.FC<KnowledgeEntryFormProps> = ({
     status: initialData?.status || EntryStatus.PUBLISHED,
   });
 
+  const [myFacilities, setMyFacilities] = useState<Facility[]>([]);
+  const [mySpecialties, setMySpecialties] = useState<Specialty[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<KnowledgeEntryCreateRequest>>({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    fetchMyAssignments();
+  }, []);
+
+  const fetchMyAssignments = async () => {
+    setLoadingAssignments(true);
+    setAssignmentError(null);
+    try {
+      const [facilitiesRes, specialtiesRes] = await Promise.all([
+        getMyFacilities(),
+        getMySpecialties(),
+      ]);
+      setMyFacilities(facilitiesRes);
+      setMySpecialties(specialtiesRes);
+    } catch (err: any) {
+      setAssignmentError('Failed to load your assignments. Please contact your administrator.');
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
 
   const validate = (): boolean => {
     const newErrors: Partial<KnowledgeEntryCreateRequest> = {};
@@ -165,8 +180,30 @@ const KnowledgeEntryForm: React.FC<KnowledgeEntryFormProps> = ({
           </Alert>
         )}
 
+        {assignmentError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {assignmentError}
+          </Alert>
+        )}
+
+        {loadingAssignments ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (myFacilities.length === 0 || mySpecialties.length === 0) ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            You have not been assigned to any {myFacilities.length === 0 ? 'facilities' : 'specialties'} yet.
+            Please contact your administrator to get assignments before creating knowledge entries.
+          </Alert>
+        ) : null}
+
         <Stack spacing={3} sx={{ mt: 2 }}>
-          <FormControl fullWidth required error={!!errors.facility} disabled={loading}>
+          <FormControl
+            fullWidth
+            required
+            error={!!errors.facility}
+            disabled={loading || loadingAssignments || myFacilities.length === 0}
+          >
             <InputLabel id="facility-label">Facility</InputLabel>
             <Select
               labelId="facility-label"
@@ -175,27 +212,47 @@ const KnowledgeEntryForm: React.FC<KnowledgeEntryFormProps> = ({
               label="Facility"
               onChange={(e) => setFormData({ ...formData, facility: e.target.value })}
             >
-              {FACILITIES.map((facility) => (
-                <MenuItem key={facility} value={facility}>
-                  {facility}
-                </MenuItem>
-              ))}
+              {myFacilities.length === 0 ? (
+                <MenuItem disabled>No facilities assigned</MenuItem>
+              ) : (
+                myFacilities.map((facility) => (
+                  <MenuItem key={facility.id} value={facility.name}>
+                    {facility.name}
+                  </MenuItem>
+                ))
+              )}
             </Select>
-            <FormHelperText>{errors.facility || 'Select your facility'}</FormHelperText>
+            <FormHelperText>{errors.facility || 'Select your assigned facility'}</FormHelperText>
           </FormControl>
 
-          <TextField
+          <FormControl
             fullWidth
-            label="Specialty Service"
-            value={formData.specialty_service}
-            onChange={(e) =>
-              setFormData({ ...formData, specialty_service: e.target.value })
-            }
-            error={!!errors.specialty_service}
-            helperText={errors.specialty_service || 'e.g., Cardiology, Emergency Medicine'}
             required
-            disabled={loading}
-          />
+            error={!!errors.specialty_service}
+            disabled={loading || loadingAssignments || mySpecialties.length === 0}
+          >
+            <InputLabel id="specialty-label">Specialty Service</InputLabel>
+            <Select
+              labelId="specialty-label"
+              id="specialty"
+              value={formData.specialty_service}
+              label="Specialty Service"
+              onChange={(e) =>
+                setFormData({ ...formData, specialty_service: e.target.value })
+              }
+            >
+              {mySpecialties.length === 0 ? (
+                <MenuItem disabled>No specialties assigned</MenuItem>
+              ) : (
+                mySpecialties.map((specialty) => (
+                  <MenuItem key={specialty.id} value={specialty.name}>
+                    {specialty.name}
+                  </MenuItem>
+                ))
+              )}
+            </Select>
+            <FormHelperText>{errors.specialty_service || 'Select your assigned specialty'}</FormHelperText>
+          </FormControl>
 
           <TextField
             fullWidth

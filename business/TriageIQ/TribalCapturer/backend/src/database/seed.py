@@ -7,7 +7,49 @@ from sqlalchemy import select
 
 from .connection import AsyncSessionLocal, engine, Base
 from ..models.user import User, UserRole
+from ..models.facility import Facility
+from ..models.specialty import Specialty
 from ..services.auth_service import hash_password
+
+
+# Initial facilities list
+INITIAL_FACILITIES = [
+    "Intermountain Medical Center – Murray, UT",
+    "Primary Children's Hospital – Salt Lake City, UT",
+    "LDS Hospital – Salt Lake City, UT",
+    "McKay-Dee Hospital – Ogden, UT",
+    "Utah Valley Hospital – Provo, UT",
+    "American Fork Hospital – American Fork, UT",
+    "Riverton Hospital – Riverton, UT",
+    "Park City Hospital – Park City, UT",
+    "Dixie Regional Medical Center – St.George, UT",
+    "Logan Regional Hospital – Logan, UT"
+]
+
+
+async def seed_facilities(db: AsyncSession):
+    """Create initial facilities if they don't already exist."""
+
+    # Check if facilities already exist
+    result = await db.execute(select(Facility))
+    existing_facilities = result.scalars().all()
+
+    if existing_facilities:
+        print(f"Database already has {len(existing_facilities)} facility/facilities. Skipping seed.")
+        return
+
+    # Create initial facilities
+    facilities = []
+    for facility_name in INITIAL_FACILITIES:
+        facility = Facility(
+            name=facility_name,
+            is_active=True
+        )
+        facilities.append(facility)
+        db.add(facility)
+
+    await db.commit()
+    print(f"✅ Created {len(facilities)} initial facilities")
 
 
 async def seed_users(db: AsyncSession):
@@ -68,6 +110,7 @@ async def main():
 
     # Seed data
     async with AsyncSessionLocal() as db:
+        await seed_facilities(db)
         await seed_users(db)
 
     print("✅ Database seed completed!")

@@ -35,6 +35,12 @@ class KnowledgeEntry(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True)
     ma_name = Column(String(255), nullable=False)  # Denormalized for audit trail
+
+    # NEW: Foreign key relationships (migration will populate these)
+    facility_id = Column(UUID(as_uuid=True), ForeignKey("facilities.id", ondelete="RESTRICT"), nullable=True, index=True)
+    specialty_id = Column(UUID(as_uuid=True), ForeignKey("specialties.id", ondelete="RESTRICT"), nullable=True, index=True)
+
+    # OLD: Keep for migration compatibility (will be removed in future migration)
     facility = Column(String(255), nullable=False, index=True)
     specialty_service = Column(String(255), nullable=False, index=True)
 
@@ -53,8 +59,9 @@ class KnowledgeEntry(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
-    # Relationship to user (optional, for eager loading)
-    # user = relationship("User", back_populates="knowledge_entries")
+    # Relationships
+    facility_rel = relationship("Facility", back_populates="knowledge_entries")
+    specialty_rel = relationship("Specialty", back_populates="knowledge_entries")
 
     def __repr__(self):
         return f"<KnowledgeEntry(id={self.id}, ma_name={self.ma_name}, facility={self.facility})>"

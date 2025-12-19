@@ -131,3 +131,107 @@ export interface BatchKnowledgeEntryResponse {
   entries: KnowledgeEntry[];
   message: string;
 }
+
+// New types for user management and facility/specialty management
+
+export interface Facility {
+  id: string;
+  name: string;
+  code?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface FacilityWithCounts extends Facility {
+  assigned_user_count: number;
+  knowledge_entry_count: number;
+}
+
+export interface FacilityListResponse {
+  facilities: Facility[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface Specialty {
+  id: string;
+  name: string;
+  code?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SpecialtyWithCounts extends Specialty {
+  assigned_user_count: number;
+  knowledge_entry_count: number;
+}
+
+export interface SpecialtyListResponse {
+  specialties: Specialty[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface UserDetailWithAssignments extends User {
+  assigned_facilities: Facility[];
+  assigned_specialties: Specialty[];
+}
+
+export interface UserListResponse {
+  users: UserDetailWithAssignments[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface UserCreateRequest {
+  username: string;
+  password: string;
+  full_name: string;
+  role: UserRole;
+  facility_ids?: string[];
+  specialty_ids?: string[];
+}
+
+export interface UserUpdateRequest {
+  full_name?: string;
+  is_active?: boolean;
+}
+
+export interface UserPasswordResetRequest {
+  new_password: string;
+}
+
+export interface UserAssignmentsRequest {
+  facility_ids: string[];
+  specialty_ids: string[];
+}
+
+export interface UserAssignmentResponse {
+  facilities: Facility[];
+  specialties: Specialty[];
+}
+
+export interface FacilityCreateRequest {
+  name: string;
+  code?: string;
+}
+
+export interface FacilityUpdateRequest {
+  name?: string;
+  code?: string;
+  is_active?: boolean;
+}
+
+export interface SpecialtyCreateRequest {
+  name: string;
+  code?: string;
+}
+
+export interface SpecialtyUpdateRequest {
+  name?: string;
+  code?: string;
+  is_active?: boolean;
+}

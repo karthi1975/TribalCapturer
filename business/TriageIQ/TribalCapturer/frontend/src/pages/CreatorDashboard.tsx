@@ -15,6 +15,9 @@ import FilterBar, { FilterValues } from '../components/FilterBar';
 import KnowledgeList from '../components/KnowledgeList';
 import KnowledgeDetail from '../components/KnowledgeDetail';
 import IntelligentSearch from '../components/IntelligentSearch';
+import UserManagement from '../components/management/UserManagement';
+import FacilityManagement from '../components/management/FacilityManagement';
+import SpecialtyManagement from '../components/management/SpecialtyManagement';
 import api from '../services/api';
 import {
   User,
@@ -158,7 +161,7 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ user, onLogout }) =
             Creator Dashboard
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Welcome, {user.full_name}! Browse and search tribal knowledge from Medical Assistants.
+            Welcome, {user.full_name}! Manage users, facilities, specialties, and browse tribal knowledge.
           </Typography>
         </Box>
 
@@ -172,6 +175,9 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ user, onLogout }) =
           <Tabs value={currentTab} onChange={(_, newValue) => setCurrentTab(newValue)}>
             <Tab label="📋 Browse All" />
             <Tab label="🧠 Intelligent Search" />
+            <Tab label="👥 User Management" />
+            <Tab label="🏥 Facilities" />
+            <Tab label="⚕️ Specialties" />
           </Tabs>
         </Box>
 
@@ -196,6 +202,18 @@ const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ user, onLogout }) =
 
         <TabPanel value={currentTab} index={1}>
           <IntelligentSearch onResultClick={handleViewEntry} />
+        </TabPanel>
+
+        <TabPanel value={currentTab} index={2}>
+          <UserManagement />
+        </TabPanel>
+
+        <TabPanel value={currentTab} index={3}>
+          <FacilityManagement />
+        </TabPanel>
+
+        <TabPanel value={currentTab} index={4}>
+          <SpecialtyManagement />
         </TabPanel>
 
         <KnowledgeDetail

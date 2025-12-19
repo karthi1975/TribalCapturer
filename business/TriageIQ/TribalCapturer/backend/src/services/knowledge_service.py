@@ -5,8 +5,13 @@ from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, desc
+from fastapi import HTTPException, status
 from ..models.knowledge_entry import KnowledgeEntry, EntryStatus
-from ..models.user import User
+from ..models.user import User, UserRole
+from ..models.user_facility import UserFacility
+from ..models.user_specialty import UserSpecialty
+from ..models.facility import Facility
+from ..models.specialty import Specialty
 from ..api.schemas.knowledge import (
     KnowledgeEntryCreate,
     KnowledgeEntryUpdate,
@@ -19,6 +24,85 @@ from ..api.schemas.knowledge import (
     BatchKnowledgeEntryCreate,
     BatchKnowledgeEntryResponse
 )
+
+
+async def _validate_ma_assignment(
+    db: AsyncSession,
+    user: User,
+    facility_text: str,
+    specialty_text: str
+) -> tuple[Optional[UUID], Optional[UUID]]:
+    """
+    Validate that MA user has access to facility and specialty.
+    Returns facility_id and specialty_id if valid.
+
+    For Creator users, just looks up the IDs without validation.
+
+    Args:
+        db: Database session
+        user: User making the request
+        facility_text: Facility name
+        specialty_text: Specialty name
+
+    Returns:
+        Tuple of (facility_id, specialty_id)
+
+    Raises:
+        HTTPException: If MA user lacks access or if facility/specialty not found
+    """
+    # Look up facility by name
+    facility_result = await db.execute(
+        select(Facility).where(Facility.name == facility_text)
+    )
+    facility = facility_result.scalar_one_or_none()
+
+    if not facility:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Facility '{facility_text}' not found"
+        )
+
+    # Look up specialty by name
+    specialty_result = await db.execute(
+        select(Specialty).where(Specialty.name == specialty_text)
+    )
+    specialty = specialty_result.scalar_one_or_none()
+
+    if not specialty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Specialty '{specialty_text}' not found"
+        )
+
+    # For MA users, validate assignments
+    if user.role == UserRole.MA:
+        # Check facility assignment
+        facility_check = await db.execute(
+            select(UserFacility).where(
+                UserFacility.user_id == user.id,
+                UserFacility.facility_id == facility.id
+            )
+        )
+        if not facility_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You are not assigned to facility '{facility_text}'"
+            )
+
+        # Check specialty assignment
+        specialty_check = await db.execute(
+            select(UserSpecialty).where(
+                UserSpecialty.user_id == user.id,
+                UserSpecialty.specialty_id == specialty.id
+            )
+        )
+        if not specialty_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You are not assigned to specialty '{specialty_text}'"
+            )
+
+    return facility.id, specialty.id
 
 
 async def create_knowledge_entry(
@@ -36,12 +120,24 @@ async def create_knowledge_entry(
 
     Returns:
         KnowledgeEntryDetail: Created entry details
+
+    Raises:
+        HTTPException: If MA user lacks access to facility/specialty
     """
+    # Validate MA assignment and get facility/specialty IDs
+    facility_id, specialty_id = await _validate_ma_assignment(
+        db, user, entry_data.facility, entry_data.specialty_service
+    )
+
     entry = KnowledgeEntry(
         user_id=user.id,
         ma_name=user.full_name,
+        # Old fields (for backwards compatibility during migration)
         facility=entry_data.facility,
         specialty_service=entry_data.specialty_service,
+        # New foreign key fields
+        facility_id=facility_id,
+        specialty_id=specialty_id,
         provider_name=entry_data.provider_name,
         knowledge_type=entry_data.knowledge_type.value if isinstance(entry_data.knowledge_type, object) else entry_data.knowledge_type,
         is_continuity_care=entry_data.is_continuity_care,
@@ -76,17 +172,27 @@ async def create_knowledge_entries_batch(
 
     Raises:
         Exception: If any entry fails validation or creation
+        HTTPException: If MA user lacks access to any facility/specialty
     """
     created_entries = []
 
     try:
         # Create all entries within the existing transaction
         for entry_data in entries_data:
+            # Validate MA assignment and get facility/specialty IDs
+            facility_id, specialty_id = await _validate_ma_assignment(
+                db, user, entry_data.facility, entry_data.specialty_service
+            )
+
             entry = KnowledgeEntry(
                 user_id=user.id,
                 ma_name=user.full_name,
+                # Old fields (for backwards compatibility during migration)
                 facility=entry_data.facility,
                 specialty_service=entry_data.specialty_service,
+                # New foreign key fields
+                facility_id=facility_id,
+                specialty_id=specialty_id,
                 provider_name=entry_data.provider_name,
                 knowledge_type=entry_data.knowledge_type.value if isinstance(entry_data.knowledge_type, object) else entry_data.knowledge_type,
                 is_continuity_care=entry_data.is_continuity_care,

@@ -38,10 +38,13 @@ async def health_check():
 
 
 # Import and include routers
-from .routes import auth, knowledge
+from .routes import auth, knowledge, facilities, specialties, user_management
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge-entries", tags=["Knowledge"])
+app.include_router(user_management.router, prefix="/api/v1/user-management", tags=["User Management"])
+app.include_router(facilities.router, prefix="/api/v1/facilities", tags=["Facilities"])
+app.include_router(specialties.router, prefix="/api/v1/specialties", tags=["Specialties"])
 
 # Serve frontend static files
 frontend_dist = Path(__file__).parent.parent.parent.parent / "frontend" / "dist"

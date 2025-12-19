@@ -24,8 +24,14 @@ class Specialty(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
-    assigned_users = relationship("User", secondary="user_specialties", back_populates="assigned_specialties")
-    knowledge_entries = relationship("KnowledgeEntry", back_populates="specialty")
+    assigned_users = relationship(
+        "User",
+        secondary="user_specialties",
+        primaryjoin="and_(Specialty.id==user_specialties.c.specialty_id)",
+        secondaryjoin="and_(User.id==user_specialties.c.user_id)",
+        back_populates="assigned_specialties"
+    )
+    knowledge_entries = relationship("KnowledgeEntry", back_populates="specialty_rel")
 
     def __repr__(self):
         return f"<Specialty(id={self.id}, name={self.name}, is_active={self.is_active})>"

@@ -1,7 +1,7 @@
 """
 User model representing system users (MAs and Creators).
 """
-from sqlalchemy import Column, String, Boolean, DateTime, Enum as SQLEnum
+from sqlalchemy import Column, String, Boolean, DateTime, Enum as SQLEnum, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -32,8 +32,20 @@ class User(Base):
     last_login = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
-    assigned_facilities = relationship("Facility", secondary="user_facilities", back_populates="assigned_users")
-    assigned_specialties = relationship("Specialty", secondary="user_specialties", back_populates="assigned_users")
+    assigned_facilities = relationship(
+        "Facility",
+        secondary="user_facilities",
+        primaryjoin="and_(User.id==user_facilities.c.user_id)",
+        secondaryjoin="and_(Facility.id==user_facilities.c.facility_id)",
+        back_populates="assigned_users"
+    )
+    assigned_specialties = relationship(
+        "Specialty",
+        secondary="user_specialties",
+        primaryjoin="and_(User.id==user_specialties.c.user_id)",
+        secondaryjoin="and_(Specialty.id==user_specialties.c.specialty_id)",
+        back_populates="assigned_users"
+    )
 
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username}, role={self.role})>"

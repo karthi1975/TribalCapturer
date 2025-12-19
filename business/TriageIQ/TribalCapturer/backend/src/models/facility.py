@@ -24,8 +24,14 @@ class Facility(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
-    assigned_users = relationship("User", secondary="user_facilities", back_populates="assigned_facilities")
-    knowledge_entries = relationship("KnowledgeEntry", back_populates="facility")
+    assigned_users = relationship(
+        "User",
+        secondary="user_facilities",
+        primaryjoin="and_(Facility.id==user_facilities.c.facility_id)",
+        secondaryjoin="and_(User.id==user_facilities.c.user_id)",
+        back_populates="assigned_facilities"
+    )
+    knowledge_entries = relationship("KnowledgeEntry", back_populates="facility_rel")
 
     def __repr__(self):
         return f"<Facility(id={self.id}, name={self.name}, is_active={self.is_active})>"

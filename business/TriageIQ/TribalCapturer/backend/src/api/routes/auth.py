@@ -285,18 +285,29 @@ async def sso_from_synaptix(
 
     # Backfill RBAC: SSO-provisioned users initially have no facility or
     # specialty assignments, which blocks them from creating knowledge
-    # entries (TribalCapturer enforces RBAC). Until we wire per-user
-    # mapping from Synaptix, give them everything — same scope as a
-    # Creator. This is idempotent — only fires when the lists are empty.
-    if not user.assigned_facilities:
-        all_facilities = (await db.execute(select(Facility))).scalars().all()
-        user.assigned_facilities = list(all_facilities)
-    if not user.assigned_specialties:
-        all_specialties = (await db.execute(select(Specialty))).scalars().all()
-        user.assigned_specialties = list(all_specialties)
+    # entries. Until we wire per-user mapping from Synaptix, give them
+    # everything — same scope as a Creator. Wrapped in try/except so any
+    # ORM hiccup here does NOT prevent SSO from issuing the session
+    # cookies and redirecting; the user just sees the assignment warning
+    # in TribalCapturer until the backfill runs cleanly.
+    try:
+        if not user.assigned_facilities:
+            all_facilities = (await db.execute(select(Facility))).scalars().all()
+            user.assigned_facilities = list(all_facilities)
+        if not user.assigned_specialties:
+            all_specialties = (await db.execute(select(Specialty))).scalars().all()
+            user.assigned_specialties = list(all_specialties)
+    except Exception as e:
+        import logging as _l
+        _l.warning(f"SSO backfill of facility/specialty assignments failed for {email}: {e}")
 
     user.last_login = datetime.utcnow()
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        import logging as _l
+        _l.warning(f"SSO commit failed for {email}: {e}")
+        await db.rollback()
 
     # Issue TribalCapturer's own session, then redirect to home.
     access_token = create_access_token(user.id, user.username, user.role)

@@ -283,23 +283,44 @@ async def sso_from_synaptix(
         await db.commit()
         await db.refresh(user, attribute_names=["assigned_facilities", "assigned_specialties"])
 
-    # Backfill RBAC: SSO-provisioned users initially have no facility or
-    # specialty assignments, which blocks them from creating knowledge
-    # entries. Until we wire per-user mapping from Synaptix, give them
-    # everything — same scope as a Creator. Wrapped in try/except so any
-    # ORM hiccup here does NOT prevent SSO from issuing the session
-    # cookies and redirecting; the user just sees the assignment warning
-    # in TribalCapturer until the backfill runs cleanly.
+    # Synaptix carries the MA's current shift context (facility_name +
+    # specialty_name) in the SSO token. Find-or-create those exact rows
+    # and replace the user's assignments with JUST them. Falls back to
+    # "assign everything" only if no context was provided AND the user has
+    # no assignments yet (preserves prior behavior for tokens without
+    # context). Wrapped in try/except so an ORM hiccup never breaks SSO.
+    sso_facility_name = (payload.get("facility_name") or "").strip()
+    sso_specialty_name = (payload.get("specialty_name") or "").strip()
+
+    async def _get_or_create(model, name: str):
+        if not name:
+            return None
+        existing = (await db.execute(select(model).where(model.name == name))).scalar_one_or_none()
+        if existing:
+            return existing
+        row = model(name=name, is_active=True)
+        db.add(row)
+        await db.flush()
+        return row
+
     try:
-        if not user.assigned_facilities:
+        target_facility = await _get_or_create(Facility, sso_facility_name)
+        target_specialty = await _get_or_create(Specialty, sso_specialty_name)
+
+        if target_facility:
+            user.assigned_facilities = [target_facility]
+        elif not user.assigned_facilities:
             all_facilities = (await db.execute(select(Facility))).scalars().all()
             user.assigned_facilities = list(all_facilities)
-        if not user.assigned_specialties:
+
+        if target_specialty:
+            user.assigned_specialties = [target_specialty]
+        elif not user.assigned_specialties:
             all_specialties = (await db.execute(select(Specialty))).scalars().all()
             user.assigned_specialties = list(all_specialties)
     except Exception as e:
         import logging as _l
-        _l.warning(f"SSO backfill of facility/specialty assignments failed for {email}: {e}")
+        _l.warning(f"SSO assignment for {email} (facility={sso_facility_name}, specialty={sso_specialty_name}): {e}")
 
     user.last_login = datetime.utcnow()
     try:

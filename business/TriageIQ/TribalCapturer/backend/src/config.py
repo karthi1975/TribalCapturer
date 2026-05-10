@@ -9,8 +9,27 @@ from typing import List
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Database
+    # Database — primary path is DATABASE_URL (full connection string).
+    # Cloud Run with Cloud SQL Auth Proxy: provide individual TRIBAL_DB_*
+    # components instead and we'll assemble the URL at startup. This lets
+    # the password come from Secret Manager via --set-secrets without
+    # baking the whole URL into a secret.
     DATABASE_URL: str = "postgresql://tribal_user:tribal_pass@localhost:5432/tribal_knowledge_portal"
+    TRIBAL_DB_HOST: str = ""        # e.g. /cloudsql/PROJECT:REGION:INSTANCE
+    TRIBAL_DB_USER: str = ""
+    TRIBAL_DB_PASSWORD: str = ""
+    TRIBAL_DB_NAME: str = ""
+
+    @property
+    def effective_database_url(self) -> str:
+        """Return the URL to connect with — composed Cloud SQL form when
+        TRIBAL_DB_* env vars are set, otherwise the literal DATABASE_URL."""
+        if self.TRIBAL_DB_HOST and self.TRIBAL_DB_PASSWORD and self.TRIBAL_DB_NAME and self.TRIBAL_DB_USER:
+            return (
+                f"postgresql://{self.TRIBAL_DB_USER}:{self.TRIBAL_DB_PASSWORD}"
+                f"@/{self.TRIBAL_DB_NAME}?host={self.TRIBAL_DB_HOST}"
+            )
+        return self.DATABASE_URL
 
     # JWT Authentication
     JWT_SECRET: str = "your-secret-key-min-32-characters-long-change-in-production"

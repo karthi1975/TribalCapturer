@@ -111,24 +111,24 @@ async def login(
     status_code=status.HTTP_200_OK,
     summary="User logout"
 )
-async def logout(
-    response: Response,
-    current_user: User = Depends(get_current_user)
-):
+async def logout(response: Response):
     """
-    Logout user by clearing HTTPOnly cookies.
-
-    Args:
-        response: FastAPI response object to clear cookies
-        current_user: Authenticated user
-
-    Returns:
-        dict: Success message
+    Logout — best-effort cookie clear. NOT authenticated so a cross-origin
+    Synaptix Sign Out (or a stale-session client) can always clear local
+    state. Re-issues Set-Cookie with the same attributes the SSO endpoint
+    used (SameSite=None + Partitioned) so the browser matches the right
+    partitioned slot when expiring them.
     """
-    # Clear cookies by setting max_age to 0
+    def _expire(name: str) -> None:
+        cookie = f"{name}=; HttpOnly; Secure; SameSite=None; Partitioned; Path=/; Max-Age=0"
+        response.raw_headers.append((b"set-cookie", cookie.encode("ascii")))
+
+    _expire("access_token")
+    _expire("refresh_token")
+    # Also emit the legacy Lax-cookie deletion for users who logged in via
+    # the form (not SSO) so we don't leave stale cookies behind.
     response.delete_cookie(key="access_token", httponly=True, samesite="lax")
     response.delete_cookie(key="refresh_token", httponly=True, samesite="lax")
-
     return {"message": "Logout successful"}
 
 
@@ -314,20 +314,25 @@ async def sso_from_synaptix(
     refresh_token = create_refresh_token(user.id)
 
     redirect = RedirectResponse(url=settings.SSO_LANDING_PATH, status_code=302)
-    redirect.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    )
-    redirect.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-    )
+
+    # Manually emit Set-Cookie with SameSite=None + Partitioned (CHIPS).
+    # Reasons:
+    # 1. SameSite=None lets the cookie ride a popup that was opened from
+    #    a different site (Synaptix) — required because the user's tab
+    #    that initiated /sso may be classified third-party by the browser.
+    # 2. Partitioned tells Chrome (and other CHIPS-compliant browsers)
+    #    that this cookie is intended to be scoped per top-level site,
+    #    which is the only way to keep cookies in incognito and in
+    #    third-party-cookie-blocked profiles.
+    # Starlette 0.27 (FastAPI 0.104.1) doesn't support `partitioned=True`
+    # in set_cookie, so we write the header ourselves.
+    def _set_cookie(name: str, value: str, max_age: int) -> None:
+        cookie = (
+            f"{name}={value}; HttpOnly; Secure; SameSite=None; "
+            f"Partitioned; Path=/; Max-Age={max_age}"
+        )
+        redirect.raw_headers.append((b"set-cookie", cookie.encode("ascii")))
+
+    _set_cookie("access_token", access_token, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    _set_cookie("refresh_token", refresh_token, settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60)
     return redirect

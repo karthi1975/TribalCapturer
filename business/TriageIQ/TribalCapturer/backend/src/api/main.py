@@ -16,10 +16,22 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS configuration
+# CORS — explicit list from settings PLUS a regex for Cloud Run / Railway /
+# localhost so the cross-origin /auth/logout call from Synaptix works without
+# us hand-editing this list every time a Cloud Run revision URL changes.
+import re as _re_cors
+_ALLOWED_ORIGIN_RE = _re_cors.compile(
+    r"^https?://("
+    r"localhost(:\d+)?"
+    r"|127\.0\.0\.1(:\d+)?"
+    r"|.*\.run\.app"
+    r"|.*\.up\.railway\.app"
+    r"|.*\.synaptix\.app"
+    r")$"
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=_ALLOWED_ORIGIN_RE.pattern,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

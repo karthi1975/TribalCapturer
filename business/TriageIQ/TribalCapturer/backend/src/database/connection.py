@@ -6,8 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import declarative_base
 from ..config import settings
 
+# Resolve effective URL (composes from TRIBAL_DB_* parts when running on
+# Cloud Run with Cloud SQL Auth Proxy; otherwise uses the literal DATABASE_URL).
 # Convert postgresql:// to postgresql+asyncpg://
-DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+DATABASE_URL = settings.effective_database_url.replace("postgresql://", "postgresql+asyncpg://")
 
 # Create async engine
 engine = create_async_engine(

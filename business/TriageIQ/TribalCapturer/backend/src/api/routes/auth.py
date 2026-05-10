@@ -12,6 +12,9 @@ from jose import JWTError, jwt
 from ...config import settings
 from ...database import get_db
 from ...models.user import User, UserRole
+from ...models.facility import Facility
+from ...models.specialty import Specialty
+from sqlalchemy.orm import selectinload
 from ...api.dependencies import get_current_user
 from ...api.schemas.user import UserLogin, UserCreate, UserInfo, LoginResponse
 from ...services.auth_service import (
@@ -255,8 +258,16 @@ async def sso_from_synaptix(
     tc_role = UserRole.CREATOR if src_role in ("creator", "admin") else UserRole.MA
 
     # Find or auto-provision the user by username (we use email as username
-    # so identity is shared across the two systems).
-    result = await db.execute(select(User).where(User.username == email))
+    # so identity is shared across the two systems). Eager-load assigned_*
+    # so we can check whether to backfill facility/specialty access below.
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.assigned_facilities),
+            selectinload(User.assigned_specialties),
+        )
+        .where(User.username == email)
+    )
     user = result.scalar_one_or_none()
 
     if not user:
@@ -270,7 +281,19 @@ async def sso_from_synaptix(
         )
         db.add(user)
         await db.commit()
-        await db.refresh(user)
+        await db.refresh(user, attribute_names=["assigned_facilities", "assigned_specialties"])
+
+    # Backfill RBAC: SSO-provisioned users initially have no facility or
+    # specialty assignments, which blocks them from creating knowledge
+    # entries (TribalCapturer enforces RBAC). Until we wire per-user
+    # mapping from Synaptix, give them everything — same scope as a
+    # Creator. This is idempotent — only fires when the lists are empty.
+    if not user.assigned_facilities:
+        all_facilities = (await db.execute(select(Facility))).scalars().all()
+        user.assigned_facilities = list(all_facilities)
+    if not user.assigned_specialties:
+        all_specialties = (await db.execute(select(Specialty))).scalars().all()
+        user.assigned_specialties = list(all_specialties)
 
     user.last_login = datetime.utcnow()
     await db.commit()

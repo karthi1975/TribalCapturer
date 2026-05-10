@@ -1,13 +1,17 @@
 """
 API routes for authentication operations.
 """
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
+from jose import JWTError, jwt
 
+from ...config import settings
 from ...database import get_db
-from ...models.user import User
+from ...models.user import User, UserRole
 from ...api.dependencies import get_current_user
 from ...api.schemas.user import UserLogin, UserCreate, UserInfo, LoginResponse
 from ...services.auth_service import (
@@ -195,3 +199,101 @@ async def register(
     await db.refresh(user)
 
     return UserInfo.model_validate(user)
+
+
+@router.get(
+    "/sso",
+    summary="SSO handshake from Synaptix",
+)
+async def sso_from_synaptix(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Accept a 60-second JWT minted by Synaptix's
+    /api/v1/auth/sso/tribal-token endpoint, auto-provision the matching
+    TribalCapturer user (by email == username), issue our own session
+    cookies, and 302-redirect to SSO_LANDING_PATH.
+
+    Token contract (HS256, signed with SYNAPTIX_SHARED_SECRET):
+        iss = "synaptix"
+        aud = "tribalcapturer"
+        purpose = "sso-exchange"
+        email, role, name (display name)
+
+    Single use is enforced by the 60s exp window — replays past that
+    point fail signature OR exp validation.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SYNAPTIX_SHARED_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+            audience="tribalcapturer",
+            issuer=settings.SYNAPTIX_ISSUER,
+        )
+    except JWTError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"SSO token invalid: {e}",
+        )
+
+    if payload.get("purpose") != "sso-exchange":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Wrong token purpose",
+        )
+
+    email = (payload.get("email") or "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Token missing email")
+
+    display_name = payload.get("name") or email
+    src_role = (payload.get("role") or "ma").lower()
+    # Map Synaptix roles → TribalCapturer roles. Creator/admin both elevate
+    # to Creator on this side; everything else is MA.
+    tc_role = UserRole.CREATOR if src_role in ("creator", "admin") else UserRole.MA
+
+    # Find or auto-provision the user by username (we use email as username
+    # so identity is shared across the two systems).
+    result = await db.execute(select(User).where(User.username == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        user = User(
+            username=email,
+            # Random hash — never used for login; SSO is the only path in.
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            full_name=display_name,
+            role=tc_role,
+            is_active=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    user.last_login = datetime.utcnow()
+    await db.commit()
+
+    # Issue TribalCapturer's own session, then redirect to home.
+    access_token = create_access_token(user.id, user.username, user.role)
+    refresh_token = create_refresh_token(user.id)
+
+    redirect = RedirectResponse(url=settings.SSO_LANDING_PATH, status_code=302)
+    redirect.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+    redirect.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+    )
+    return redirect

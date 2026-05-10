@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    # SSO bridge from Synaptix — must match Synaptix backend's
+    # SYNAPTIX_JWT_SECRET. For demo we default to the Synaptix demo string;
+    # production should rotate via Secret Manager and the env var.
+    SYNAPTIX_SHARED_SECRET: str = "demo-secret-change-in-production-Demo2026"
+    SYNAPTIX_ISSUER: str = "synaptix"
+    # Where to redirect once an SSO handshake succeeds (relative path).
+    SSO_LANDING_PATH: str = "/"
+
     # Application
     ENVIRONMENT: str = "development"
     CORS_ORIGINS: List[str] = ["http://localhost:5777", "http://localhost:3000"]
